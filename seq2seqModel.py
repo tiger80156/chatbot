@@ -1,5 +1,4 @@
 import tensorflow as tf
-import numpy as np
 
 
 # The place holder of the model
@@ -27,24 +26,25 @@ def preprocess_targets(target, questionsWord2Id, batchSize):
 
 # Encoding layer
 def encoder_rnn(rnnInput, rnnSize, numLayers, keepProb, sequenceLength):
-    # LSTM Cell
-    lstm = tf.contrib.rnn.BasicLSTMCell(rnnSize)
-    # Dropout layer add input dropout
-    lstmDropout = tf.contrib.rnn.DropoutWrapper(lstm, input_keep_prob=keepProb)
-    #
-    encoderCell = tf.contrib.rnn.MutiRNNCell([lstmDropout] * numLayers)
 
-    #
+    lstm = tf.contrib.rnn.BasicLSTMCell(rnnSize)
+
+    lstmDropout = tf.contrib.rnn.DropoutWrapper(lstm, input_keep_prob=keepProb)
+
+
+    encoderCell = tf.contrib.rnn.MultiRNNCell([lstmDropout] * numLayers)
+
     _, encoder_state = tf.nn.bidirectional_dynamic_rnn(cell_fw=encoderCell,
                                                        cell_bw=encoderCell,
                                                        sequence_length=sequenceLength,
-                                                       input=rnnInput,
+                                                       inputs=rnnInput,
                                                        dtype=tf.float32)
     return encoder_state
 
-
+#
 def decode_training_set(encoder_state, decoder_cell, decoder_embedded_input, sequence_length, decoding_scope, output_function,
     keep_prob, batch_size):
+
     attention_states = tf.zeros([batch_size, 1, decoder_cell.output_size])
 
     attention_keys, attention_values, attention_score_function, attention_construct_function = tf.contrib.seq2seq.prepare_attention(attention_states, attention_option="bahdanau", num_units=decoder_cell.output_size)
@@ -126,13 +126,13 @@ def decoder_rnn(decoder_embedded_input, decoder_embeddings_matrix, encoder_state
     return training_predictions, test_predictions
 
 # Building the seq2seq model
-def seq2seq_model(inputs, targets, keep_prob, batch_size, sequence_length, answers_num_words, questions_num_words, encoder_embedding_size, decoder_embedding_size, rnn_size, num_layers, questionswords2int):
+def seq2seq_model(inputs, targets, keep_prob, batch_size, sequence_length, answers_num_words, questions_num_words, encoder_embedding_size, decoder_embedding_size, rnn_size, num_layers, questionsWords2Int):
     encoder_embedded_input = tf.contrib.layers.embed_sequence(inputs,
                                                               answers_num_words + 1,
                                                               encoder_embedding_size,
                                                               initializer = tf.random_uniform_initializer(0, 1))
     encoder_state = encoder_rnn(encoder_embedded_input, rnn_size, num_layers, keep_prob, sequence_length)
-    preprocessed_targets = preprocess_targets(targets, questionswords2int, batch_size)
+    preprocessed_targets = preprocess_targets(targets, questionsWords2Int, batch_size)
     decoder_embeddings_matrix = tf.Variable(tf.random_uniform([questions_num_words + 1, decoder_embedding_size], 0, 1))
     decoder_embedded_input = tf.nn.embedding_lookup(decoder_embeddings_matrix, preprocessed_targets)
     training_predictions, test_predictions = decoder_rnn(decoder_embedded_input,
@@ -142,8 +142,7 @@ def seq2seq_model(inputs, targets, keep_prob, batch_size, sequence_length, answe
                                                          sequence_length,
                                                          rnn_size,
                                                          num_layers,
-                                                         questionswords2int,
+                                                         questionsWords2Int,
                                                          keep_prob,
                                                          batch_size)
     return training_predictions, test_predictions
-

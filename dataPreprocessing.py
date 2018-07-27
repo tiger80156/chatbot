@@ -1,7 +1,7 @@
 # import numpy as np
 # import tensorflow as tf
 import re
-import time
+import numpy as np
 
 
 def re_text(text):
@@ -63,8 +63,6 @@ def dataPreprocessing():
     return questions_clean, answers_clean
 
 # filter out the word frequent < 15
-
-
 def filterTheNonFrequentWord(questions, answers, threshold=15):
 
     wordCount = {}
@@ -113,7 +111,7 @@ def filterTheNonFrequentWord(questions, answers, threshold=15):
 
     return questionWord2Count, answerWord2Count, questionCount2word
 
-
+# Add <EOS> "End of string token to the end of string"
 def addToken(answers):
 
     for i in range(len(answers)):
@@ -154,9 +152,8 @@ def sentenceEncoding(questions, answers, questionsWord2Id, answerWord2Id):
 
     return questionsEncoding, answersEncoding
 
+
 # Sort the training data by length and filter out the sectence size bigger than 25
-
-
 def sortByLen(questions, answers):
     # print(questions[:5])
     sortedQuestions = []
@@ -169,3 +166,20 @@ def sortByLen(questions, answers):
                 sortedAnswers.append(answers[i[0]])
 
     return sortedQuestions, sortedAnswers
+
+# Apply the padding to the sentence EX:["How are you <PAD> <PAD> <PAD> <PAD> ..." ] fixed the sentence to fixed length
+def apply_padding(batch_of_sequences, word2ID):
+    max_sequence_length = max([len(sequence) for sequence in batch_of_sequences])
+
+    return [sequence + [word2ID["<PAD>"]] * (max_sequence_length - len(sequence)) for sequence in batch_of_sequences]
+
+# Split train set into several batches
+def split_into_batches(questions, answers, batch_size, questionsWord2Id, answersWord2Id):
+    for batch_index in range(0,len(questions)//batch_size):
+        batch_index_begin = batch_index * batch_size
+        questions_in_batch = questions[batch_index_begin:batch_index_begin+batch_size]
+        answers_in_batch = answers[batch_index_begin:batch_index_begin+batch_size]
+        padded_questions_in_batch = np.array(apply_padding(questions_in_batch, questionsWord2Id))
+        padded_answers_in_batch = np.array(apply_padding(answers_in_batch, answersWord2Id))
+        yield padded_questions_in_batch, padded_answers_in_batch
+
